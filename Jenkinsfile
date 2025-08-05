@@ -7,12 +7,12 @@ pipeline {
     IMAGE_NAME = "gcr.io/${GCP_PROJECT}/my-flask-app"
   }
 
-  stages {
-    stage('Checkout') {
-      steps {
-        git 'https://github.com/rubak714/gcp-cicd.git'
-      }
+  stage('Checkout') {
+    steps {
+        git branch: 'main', url: 'https://github.com/rubak714/gcp-cicd.git'
     }
+  }
+
 
     stage('Authenticate with GCP') {
       steps {
