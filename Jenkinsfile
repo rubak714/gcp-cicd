@@ -16,12 +16,12 @@ pipeline {
 
     stage('Authenticate with GCP') {
       steps {
-        withCredentials([file(credentialsId: 'gcp-sa-key', variable: 'GOOGLE_APPLICATION_CREDENTIALS')]) {
-          sh '''
-            gcloud auth activate-service-account --key-file=$GOOGLE_APPLICATION_CREDENTIALS
-            gcloud config set project $GCP_PROJECT
-          '''
+        withCredentials([string(credentialsId: 'gcp-sa-key', variable: 'SA_JSON')]) {
+         writeFile file: 'sa.json', text: SA_JSON
+         sh 'gcloud auth activate-service-account --key-file=sa.json'
+         sh 'gcloud config set project $GCP_PROJECT'
         }
+
       }
     }
 
