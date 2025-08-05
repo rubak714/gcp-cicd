@@ -3,25 +3,26 @@ pipeline {
 
   environment {
     GCP_PROJECT = 'stable-healer-418019'
-    REGION = 'us-central1'
-    IMAGE_NAME = "gcr.io/${GCP_PROJECT}/my-flask-app"
+    REGION      = 'us-central1'
+    IMAGE_NAME  = "gcr.io/${GCP_PROJECT}/my-flask-app"
   }
 
-  stage('Checkout') {
-    steps {
+  stages {
+    stage('Checkout') {
+      steps {
         git branch: 'main', url: 'https://github.com/rubak714/gcp-cicd.git'
+      }
     }
-  }
-
 
     stage('Authenticate with GCP') {
       steps {
         withCredentials([string(credentialsId: 'gcp-sa-key', variable: 'SA_JSON')]) {
-         writeFile file: 'sa.json', text: SA_JSON
-         sh 'gcloud auth activate-service-account --key-file=sa.json'
-         sh 'gcloud config set project $GCP_PROJECT'
+          writeFile file: 'sa.json', text: SA_JSON
+          sh '''
+            gcloud auth activate-service-account --key-file=sa.json
+            gcloud config set project $GCP_PROJECT
+          '''
         }
-
       }
     }
 
