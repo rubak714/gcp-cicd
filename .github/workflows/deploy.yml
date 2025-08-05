@@ -1,4 +1,4 @@
-name: Deploy to Cloud Run
+name: Build and Deploy to Cloud Run
 
 on:
   push:
@@ -10,26 +10,32 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
-    - name: Set up Google Cloud credentials
-      uses: google-github-actions/setup-gcloud@v1
+    - name: Authenticate with GCP
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+    - name: Set up gcloud
+      uses: google-github-actions/setup-gcloud@v2
       with:
         project_id: stable-healer-418019
-        service_account_key: ${{ secrets.GCP_SA_KEY }}
-        export_default_credentials: true
+        install_components: 'beta'
 
-    - name: Configure Docker to use gcloud
-      run: gcloud auth configure-docker
-
-    - name: Build Docker image
+    - name: Configure Docker for Artifact Registry
       run: |
-        docker build -t gcr.io/stable-healer-418019/flask-api:$GITHUB_SHA .
-        docker push gcr.io/stable-healer-418019/flask-api:$GITHUB_SHA
+        gcloud auth configure-docker us-central1-docker.pkg.dev
+
+    - name: Build and push Docker image
+      run: |
+        docker build -t us-central1-docker.pkg.dev/stable-healer-418019/my-repo/my-flask-app .
+        docker push us-central1-docker.pkg.dev/stable-healer-418019/my-repo/my-flask-app
 
     - name: Deploy to Cloud Run
-      uses: google-github-actions/deploy-cloudrun@v1
-      with:
-        service: flask-api
-        image: gcr.io/stable-healer-418019/flask-api:$GITHUB_SHA
-        region: europe-west3
+      run: |
+        gcloud run deploy my-flask-app \
+          --image us-central1-docker.pkg.dev/stable-healer-418019/my-repo/my-flask-app \
+          --platform managed \
+          --region us-central1 \
+          --allow-unauthenticated
