@@ -1,0 +1,35 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Google Cloud credentials
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+        project_id: stable-healer-418019
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
+        export_default_credentials: true
+
+    - name: Configure Docker to use gcloud
+      run: gcloud auth configure-docker
+
+    - name: Build Docker image
+      run: |
+        docker build -t gcr.io/stable-healer-418019/flask-api:$GITHUB_SHA .
+        docker push gcr.io/stable-healer-418019/flask-api:$GITHUB_SHA
+
+    - name: Deploy to Cloud Run
+      uses: google-github-actions/deploy-cloudrun@v1
+      with:
+        service: flask-api
+        image: gcr.io/stable-healer-418019/flask-api:$GITHUB_SHA
+        region: europe-west3
