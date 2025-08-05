@@ -1,0 +1,341 @@
+# log query
+resource.type="cloud_run_revision"
+resource.labels.service_name="my-flask-app"
+
+# real traffic
+for i in {1..50}; do
+  curl -s -o /dev/null -w "%{http_code}\n" https://my-flask-app-1015457000631.europe-west2.run.app/
+  sleep 1
+done
+
+
+------------ without GCP -----------------
+docker build -t my-flask-app .
+docker run -d -p 5000:5000 my-flask-app
+docker ps
+docker stop <container_id>
+docker rm <container_id>
+docker logs <container_id>
+docker attach <container_id>
+docker --version
+
+------------------ with GCP ---------------------
+gcloud version
+gcloud init
+gcloud auth list
+gcloud auth login
+gcloud projects list
+gcloud config set project YOUR_PROJECT_ID
+
+
+Pro Tip: Set Defaults So You Don’t Have to Specify Every Time
+
+gcloud config set run/region europe-west2
+gcloud config set run/platform managed
+gcloud config set project stable-healer-418019
+Now you can skip --region, --platform, and --project in most commands.
+
+
+# how to push an image to gcp from local vs studio
+# 1. Tag your local image for Google Container Registry (GCR)
+docker tag my-flask-app gcr.io/stable-healer-418019/my-flask-app
+
+# 2. Authenticate Docker with GCR
+gcloud auth configure-docker #This will allow Docker to push images to GCR. If this succeeds, continue:
+
+# Tag your image correctly
+docker tag my-flask-app gcr.io/stable-healer-418019/my-flask-app
+
+# Login to Google Cloud
+gcloud auth login
+
+# Set your project
+gcloud config set project stable-healer-418019
+
+gcloud config list
+
+# test with 'gcloud run deploy'
+
+
+# Enable Docker to push to GCR
+gcloud auth configure-docker
+
+# Push your image
+docker push gcr.io/stable-healer-418019/my-flask-app
+
+
+# tag the image
+docker tag my-flask-app gcr.io/stable-healer-418019/my-flask-app
+
+# Then run this to set up Docker authentication:
+gcloud auth configure-docker
+
+# push the imagegcloud auth configure-docker
+docker push gcr.io/stable-healer-418019/my-flask-app
+
+
+# deploy to cloud run
+gcloud run deploy my-flask-app \
+  --image gcr.io/stable-healer-418019/my-flask-app \
+  --platform managed \
+  --region europe-west2 \
+  --allow-unauthenticated
+
+# in one line 
+gcloud run deploy my-flask-app --image gcr.io/stable-healer-418019/my-flask-app --platform managed --region europe-west2 --allow-unauthenticated
+
+# Retrieve the URL Again Using gcloud
+# You can always re-fetch the deployed URL with this command:
+
+gcloud run services describe my-flask-app \
+  --platform=managed \
+  --region=europe-west2 \
+  --format='value(status.url)'
+
+
+  # If you haven’t enabled Cloud Run API yet, run:
+  gcloud services enable run.googleapis.com
+
+
+------------------------------ GKE -------------------------------
+project_id : stable-healer-418019
+# basic commands
+where kubectl
+kubectl version --client
+
+gcloud config set project stable-healer-418019
+gcloud auth login
+gcloud container clusters create my-cluster \
+  --num-nodes=2 \
+  --zone=us-central1-a
+
+
+
+
+
+
+gcloud components install kubectl
+
+Step 1: Create a GKE Cluster
+gcloud container clusters create my-cluster \
+  --num-nodes=1 \
+  --zone=europe-west2
+# This creates a GKE cluster with 1 node in the specified zone.
+
+Step 2: Get Cluster Credentials/Authenticate kubectl with GKE
+gcloud container clusters get-credentials my-cluster --zone=europe-west2
+# This sets up your kubectl config to talk to the cluster.
+
+#Build your image locally (with Docker):
+
+
+
+#Authenticate Docker with GCR:
+gcloud auth configure-docker
+
+#Push the image to GCR:/only uploading to remote registry gcr
+docker push gcr.io/stable-healer-418019/my-flask-app:latest
+
+#Use gcloud config get-value project to get your current project ID:
+gcloud config get-value project
+
+#finally deploying: 
+Step 3: Create a Kubernetes Deployment YAML
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-flask-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-flask-app
+  template:
+    metadata:
+      labels:
+        app: my-flask-app
+    spec:
+      containers:
+      - name: my-flask-app
+        image: gcr.io/stable-healer-418019/my-flask-app
+        ports:
+        - containerPort: 5000
+
+Step 4: Create a Service YAML
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-flask-app-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: my-flask-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
+
+Step 5: Apply the Configs with kubectl
+kubectl apply -f kubernetes/deployment.yaml #“Take the Kubernetes Deployment definition inside deployment.yaml and create or update it in the cluster.”
+kubectl apply -f kubernetes/service.yaml   #Applies the Service definition from that YAML file.
+
+# They deploy my app into an existing Kubernetes cluster.
+
+ Step 6: Get the External IP
+ example: kubectl get service my-flask-app-service
+ with real name: kubectl get service flask-service
+
+
+ Once EXTERNAL-IP is available, visit it in your browser — your Flask app will be running on GKE
+
+ #Confirm Running
+kubectl get pods
+kubectl logs <your-pod-name>
+kubectl describe pod <pod-name>
+
+#Optional Cleanup
+To delete everything later:
+gcloud container clusters delete my-cluster --zone=europe-west2
+
+kubectl config current-context
+
+kubectl get nodes
+kubectl describe nodes
+kubectl get pods --all-namespaces
+kubectl get pods -n default
+kubectl top pods
+kubectl top nodes
+
+kubectl get all
+
+# Deployment (shortened)
+# minimal version of YAMLs
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flask-app
+  template:
+    metadata:
+      labels:
+        app: flask-app
+    spec:
+      containers:
+      - name: flask
+        image: gcr.io/your-project-id/flask-app
+        ports:
+        - containerPort: 5000
+
+#  Service (shortened)
+apiVersion: v1
+kind: Service
+metadata:
+  name: flask-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: flask-app
+  ports:
+    - port: 80
+      targetPort: 5000
+
+
+---
+# 📦 Helm Chart Structure (Minimal for Flask App)
+
+# Chart.yaml
+apiVersion: v2
+name: flask-app
+version: 0.1.0
+description: A simple Flask app deployed via Helm
+
+---
+# values.yaml
+replicaCount: 1
+image:
+  repository: gcr.io/your-project-id/flask-app
+  pullPolicy: IfNotPresent
+  port: 5000
+
+service:
+  type: LoadBalancer
+  port: 80
+
+---
+# templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: {{ .Chart.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: {{ .Values.image.repository }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.image.port }}
+
+---
+# templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app: {{ .Chart.Name }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: {{ .Values.image.port }}
+
+---
+# kubectl Automation Script
+# run_deploy.sh
+
+#!/bin/bash
+
+APP_NAME=flask-app
+IMAGE=gcr.io/your-project-id/flask-app
+NAMESPACE=default
+REGION=europe-west1
+
+# Create deployment
+kubectl create deployment $APP_NAME --image=$IMAGE --port=5000 --namespace=$NAMESPACE
+
+# Expose service
+kubectl expose deployment $APP_NAME --type=LoadBalancer --port=80 --target-port=5000 --namespace=$NAMESPACE
+
+# View service IP
+kubectl get services --namespace=$NAMESPACE
+
+---
+# Template for Reuse
+
+# Steps to deploy Flask on GKE using Helm:
+1. Install Helm: `brew install helm` or `apt install helm`
+2. Create a Helm chart: `helm create flask-app`
+3. Replace template files with above
+4. Run:
+   ```sh
+   helm install flask-app ./flask-app
+   ```
+5. Get service IP:
+   ```sh
+   kubectl get svc
+   
